@@ -4,10 +4,10 @@ Search Chinese e-commerce products (Pinduoduo / Taobao) by keyword or image, dir
 
 ## What it does
 
-- **Keyword search** — give it a product name, get back prices, images, and affiliate links
+- **Keyword search** — give it a product name, get back prices, images, and purchase links
 - **Image search** — give it a photo URL, the API identifies purchasable items with a vision LLM, then searches products for each one
 
-Powered by the [HomeGlow](http://129.211.172.11) backend.
+Powered by the [HomeGlow](https://huanxinjia.site) backend.
 
 ## Install in OpenClaw
 
@@ -22,12 +22,12 @@ Then restart your OpenClaw gateway. No API key or binary required — the skill 
 
 ## API
 
-Base URL: `http://129.211.172.11/api/v1`
+Base URL: `https://huanxinjia.site/api/v1`
 
 ### POST /search/keyword
 
 ```bash
-curl -s -X POST http://129.211.172.11/api/v1/search/keyword \
+curl -s -X POST https://huanxinjia.site/api/v1/search/keyword \
   -H "Content-Type: application/json" \
   -d '{"query": "北欧风落地灯", "limit": 3}'
 ```
@@ -35,7 +35,7 @@ curl -s -X POST http://129.211.172.11/api/v1/search/keyword \
 ### POST /search/image
 
 ```bash
-curl -s -X POST http://129.211.172.11/api/v1/search/image \
+curl -s -X POST https://huanxinjia.site/api/v1/search/image \
   -H "Content-Type: application/json" \
   -d '{"image_url": "https://example.com/room.jpg", "limit_per_item": 3}'
 ```

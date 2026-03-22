@@ -1,6 +1,6 @@
 #!/bin/bash
 # HomeGlow Search API — quick demo
-BASE="http://129.211.172.11/api/v1"
+BASE="https://huanxinjia.site/api/v1"
 
 case "$1" in
   keyword)
