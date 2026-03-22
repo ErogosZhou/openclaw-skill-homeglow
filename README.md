@@ -11,11 +11,9 @@ Powered by the [HomeGlow](https://huanxinjia.site) backend.
 
 ## Install in OpenClaw
 
-Copy `SKILL.md` into your OpenClaw skills directory:
-
 ```bash
 mkdir -p ~/.openclaw/skills/homeglow_search
-cp SKILL.md ~/.openclaw/skills/homeglow_search/SKILL.md
+curl -o ~/.openclaw/skills/homeglow_search/SKILL.md https://huanxinjia.site/SKILL.md
 ```
 
 Then restart your OpenClaw gateway. No API key or binary required — the skill uses `curl`.
