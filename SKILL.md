@@ -7,7 +7,7 @@ metadata: {"openclaw":{"emoji":"🛍️","requires":{"bins":["curl"]}}}
 
 # HomeGlow Product Search
 
-Search Chinese e-commerce products by keyword or by image.
+Search Chinese e-commerce products by keyword or image, then generate a shareable card image the user can scan to buy.
 
 Base URL: `https://huanxinjia.site/api/v1`
 
@@ -15,20 +15,27 @@ Base URL: `https://huanxinjia.site/api/v1`
 
 - User asks to find / buy / compare products
 - User shares an image and wants to know where to buy what's in it
-- User wants price info for Chinese e-commerce
+- User wants product recommendations on Chinese e-commerce platforms
 
 ## When NOT to Use
 
-- User wants international (Amazon, eBay) products — this API covers CN platforms only
-- User asks for inventory, order status, or seller info
+- User wants international (Amazon, eBay) products — CN platforms only
+- User asks for order status or seller info
 
 ---
 
-## 1. Keyword Search
+## Workflow: always two steps
+
+**Step 1 — search** to get a product list
+**Step 2 — generate a card** for the best match and send the image to the user
+
+Never skip Step 2. In WeChat and similar environments plain URLs don't work — always send the card image.
+
+---
+
+## Step 1: Keyword Search
 
 `POST /search/keyword`
-
-Search by a text query. Returns products with prices and purchase links.
 
 ```bash
 curl -s -X POST https://huanxinjia.site/api/v1/search/keyword \
@@ -45,12 +52,12 @@ curl -s -X POST https://huanxinjia.site/api/v1/search/keyword \
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `query` | ✅ | Main search string, e.g. `"白色简约地毯"` |
+| `query` | ✅ | Main search string — use Chinese for best results |
 | `keywords` | ❌ | Extra keywords to improve matching |
-| `category` | ❌ | Hint: `灯具` / `纺织品` / `绿植` / `收纳用品` / `墙面装饰` / `桌面摆件` |
+| `category` | ❌ | `灯具` / `纺织品` / `绿植` / `收纳用品` / `墙面装饰` / `桌面摆件` |
 | `limit` | ❌ | 1–20, default 5 |
 
-**Response shape:**
+**Response — pick the best product, then go to Step 2:**
 
 ```json
 {
@@ -58,31 +65,26 @@ curl -s -X POST https://huanxinjia.site/api/v1/search/keyword \
   "total": 5,
   "products": [
     {
-      "id": "abc123",
-      "name": "北欧简约落地灯客厅卧室",
-      "price": 129.0,
-      "original_price": 299.0,
-      "image_url": "https://...",
-      "shop_name": "某某灯具旗舰店",
-      "sales": 3200,
-      "product_url": "https://...",
+      "id": "E9X2_xxx",
+      "name": "氛围灯落地灯简约北欧立式台灯",
+      "price": 13.49,
+      "original_price": 199.0,
+      "image_url": "https://img.pddpic.com/...",
+      "shop_name": "某某灯具店",
+      "sales": 35000,
       "platform": "pdd"
     }
   ]
 }
 ```
 
-**Tips:**
-- Use Chinese keywords for best results (the platforms are CN-only)
-- Include style / color in `query` for more relevant results, e.g. `"白色北欧风收纳盒"`
-
 ---
 
-## 2. Image-based Identify + Search
+## Step 1 (alternative): Image Identify + Search
 
 `POST /search/image`
 
-Give it a publicly reachable image URL. The API uses a vision LLM to identify purchasable items, then searches products for each one.
+Give it a room photo; the API identifies purchasable items and searches products for each.
 
 ```bash
 curl -s -X POST https://huanxinjia.site/api/v1/search/image \
@@ -93,7 +95,7 @@ curl -s -X POST https://huanxinjia.site/api/v1/search/image \
   }'
 ```
 
-With before/after diff (only new items identified):
+With before/after comparison (only newly added items identified):
 
 ```bash
 curl -s -X POST https://huanxinjia.site/api/v1/search/image \
@@ -110,58 +112,56 @@ curl -s -X POST https://huanxinjia.site/api/v1/search/image \
 | Field | Required | Description |
 |-------|----------|-------------|
 | `image_url` | ✅ | Publicly reachable JPEG / PNG / WebP URL |
-| `original_image_url` | ❌ | Before-photo; if set, only newly added items are identified |
+| `original_image_url` | ❌ | Before-photo for diff; only new items are identified |
 | `limit_per_item` | ❌ | Products per item, 1–10, default 3 |
 
-**Response shape:**
-
-```json
-{
-  "total_items": 2,
-  "items": [
-    {
-      "name": "编织地毯",
-      "category": "纺织品",
-      "description": "米色编织纹理，北欧风，适合客厅",
-      "color": "米色",
-      "style": "北欧",
-      "price_estimate": "200-500元",
-      "search_keywords": ["北欧地毯", "编织地毯", "客厅地毯"],
-      "products": [
-        {
-          "id": "xyz789",
-          "name": "北欧编织地毯客厅茶几毯",
-          "price": 239.0,
-          "image_url": "https://...",
-          "product_url": "https://...",
-          "platform": "pdd"
-        }
-      ]
-    }
-  ]
-}
-```
-
-**Tips:**
-- Image must be publicly accessible (not behind auth / WeChat / local paths)
-- Works best on room photos with clearly visible furniture or decor items
-- For single-item product images, `original_image_url` is not needed
+Response has the same product structure as keyword search, nested under each identified item.
 
 ---
 
-## Presenting Results to Users
+## Step 2: Generate Product Card
 
-Always show:
-1. Product name + price
-2. `product_url` as the purchase link
-3. Brief platform note: `pdd` = 拼多多, `taobao` = 淘宝
+`POST /search/card`
 
-Example response to user:
+Takes one product from the search results, generates a card image (product photo + price + QR code).
+Returns a `card_url` — **send this image URL directly to the user**.
 
-> 找到以下商品：
->
-> 1. **北欧编织地毯** — ¥239 [立即购买](product_url) (拼多多，3200+已售)
-> 2. **简约棉麻地毯** — ¥189 [立即购买](product_url) (拼多多，1800+已售)
+```bash
+curl -s -X POST https://huanxinjia.site/api/v1/search/card \
+  -H "Content-Type: application/json" \
+  -d '{
+    "goods_sign": "<product.id from Step 1>",
+    "product_name": "<product.name>",
+    "price": 13.49,
+    "original_price": 199.0,
+    "image_url": "<product.image_url>",
+    "platform": "pdd"
+  }'
+```
+
+**Request fields — all come from a product in Step 1:**
+
+| Field | Required | Source |
+|-------|----------|--------|
+| `goods_sign` | ✅ | `product.id` |
+| `product_name` | ✅ | `product.name` |
+| `price` | ✅ | `product.price` |
+| `original_price` | ❌ | `product.original_price` |
+| `image_url` | ✅ | `product.image_url` |
+| `platform` | ❌ | `product.platform` (default `pdd`) |
+
+**Response:**
+
+```json
+{
+  "card_url": "https://huanxinjia.site/uploads/card_abc123.jpg"
+}
+```
+
+**Send this to the user:**
+
+> 为您找到这款商品，扫描图中二维码即可购买：
+> [card_url image]
 
 ---
 
@@ -169,8 +169,6 @@ Example response to user:
 
 | HTTP status | Meaning | What to do |
 |-------------|---------|------------|
-| 503 | E-commerce API not configured | Tell user platform search is unavailable |
-| 500 | Vision API failed (image endpoint) | Ask user to try a different image |
-| 400 | Bad request / image not reachable | Check image URL is public |
-
-On 503/500, fall back to keyword search if possible.
+| 503 | E-commerce API not configured | Tell user search is unavailable |
+| 500 | Vision or card generation failed | Try keyword search instead |
+| 400 | Image URL not reachable | Ask user for a public image URL |
